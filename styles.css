@@ -104,3 +104,71 @@ body {
 .flight-btn:hover {
     background: #0056b3;
 }
+
+/* Distance display */
+.distance {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-top: 0.25rem;
+}
+
+/* Loading states */
+.loading-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem 1.5rem;
+    text-align: center;
+}
+
+.loading-spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid var(--border-color);
+    border-top: 3px solid var(--accent-color);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 1rem;
+}
+
+.loading-state p {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Wave height status colors */
+.wave-height {
+    color: var(--accent-color);
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.wave-height[data-status="loading"] {
+    color: var(--text-secondary);
+    opacity: 0.7;
+}
+
+/* Responsive improvements */
+@media (max-width: 640px) {
+    .spot-card {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+    
+    .flight-info {
+        text-align: left;
+        width: 100%;
+    }
+    
+    .flight-btn {
+        width: 100%;
+        padding: 0.75rem 1rem;
+    }
+}

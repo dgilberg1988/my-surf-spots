@@ -87,21 +87,81 @@ async function updateWaveData() {
     renderSurfSpots(); // Re-render with updated data
 }
 
+// Get user's location
+function getUserLocation() {
+    return new Promise((resolve, reject) => {
+        if (!navigator.geolocation) {
+            reject(new Error('Geolocation is not supported by this browser'));
+            return;
+        }
+        
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                userLocation = {
+                    lat: position.coords.latitude,
+                    lon: position.coords.longitude
+                };
+                resolve(userLocation);
+            },
+            (error) => {
+                console.error('Error getting location:', error);
+                reject(error);
+            },
+            {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 300000 // 5 minutes
+            }
+        );
+    });
+}
+
+// Calculate distance between two coordinates (Haversine formula)
+function calculateDistance(lat1, lon1, lat2, lon2) {
+    const R = 3959; // Earth's radius in miles
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = 
+        Math.sin(dLat/2) * Math.sin(dLat/2) +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+        Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    const distance = R * c;
+    return Math.round(distance);
+}
+
 function renderSurfSpots() {
     const container = document.getElementById('surfSpots');
     
     // Clear existing content
     container.innerHTML = '';
     
+    // Sort spots by distance if user location is available
+    let sortedSpots = [...surfSpots];
+    if (userLocation) {
+        sortedSpots = surfSpots.map(spot => ({
+            ...spot,
+            distance: calculateDistance(
+                userLocation.lat, 
+                userLocation.lon, 
+                spot.coordinates.lat, 
+                spot.coordinates.lon
+            )
+        })).sort((a, b) => a.distance - b.distance);
+    }
+    
     // Render each surf spot
-    surfSpots.forEach(spot => {
+    sortedSpots.forEach(spot => {
         const spotCard = document.createElement('div');
         spotCard.className = 'spot-card';
+        
+        const distanceText = spot.distance ? `${spot.distance.toLocaleString()} miles away` : '';
         
         spotCard.innerHTML = `
             <div class="spot-info">
                 <h3 class="spot-name">${spot.name}</h3>
                 <div class="wave-height">${spot.waveHeight}</div>
+                ${distanceText ? `<div class="distance">${distanceText}</div>` : ''}
             </div>
             <div class="flight-info">
                 <div class="flight-cost">Est. Flight: ${spot.flightCost}</div>
@@ -114,10 +174,80 @@ function renderSurfSpots() {
 }
 
 function findFlights(spotName) {
-    // Placeholder for flight booking functionality
-    alert(`Finding flights to ${spotName}...`);
-    // This will be enhanced in Stage 4 with actual flight booking integration
+    const spot = surfSpots.find(s => s.name === spotName);
+    if (!spot) return;
+    
+    // Create flight search URL for popular booking sites
+    const destination = spot.airport;
+    let searchUrl;
+    
+    if (userLocation) {
+        // If we have user location, try to find nearest airport
+        // For now, we'll use a generic search
+        searchUrl = `https://www.kayak.com/flights?destination=${destination}`;
+    } else {
+        // Default search without origin
+        searchUrl = `https://www.google.com/flights?destination=${destination}`;
+    }
+    
+    // Open flight search in new tab
+    window.open(searchUrl, '_blank');
+}
+
+// Enhanced flight search with more booking options
+function showFlightOptions(spotName) {
+    const spot = surfSpots.find(s => s.name === spotName);
+    if (!spot) return;
+    
+    const bookingOptions = [
+        { name: 'Google Flights', url: `https://www.google.com/flights?destination=${spot.airport}` },
+        { name: 'Kayak', url: `https://www.kayak.com/flights?destination=${spot.airport}` },
+        { name: 'Expedia', url: `https://www.expedia.com/Flights?destination=${spot.airport}` }
+    ];
+    
+    // For demo purposes, just use the first option
+    window.open(bookingOptions[0].url, '_blank');
+}
+
+// Show loading state
+function showLoading() {
+    const container = document.getElementById('surfSpots');
+    container.innerHTML = `
+        <div class="loading-state">
+            <div class="loading-spinner"></div>
+            <p>Loading epic surf spots...</p>
+        </div>
+    `;
+    isLoading = true;
+}
+
+// Initialize the widget
+async function initializeWidget() {
+    showLoading();
+    
+    try {
+        // Try to get user location (non-blocking)
+        try {
+            await getUserLocation();
+            console.log('User location detected:', userLocation);
+        } catch (locationError) {
+            console.log('Location access denied or unavailable, continuing without location');
+        }
+        
+        // Render initial spots
+        renderSurfSpots();
+        
+        // Fetch real wave data
+        await updateWaveData();
+        
+    } catch (error) {
+        console.error('Error initializing widget:', error);
+        // Fallback to static display
+        renderSurfSpots();
+    } finally {
+        isLoading = false;
+    }
 }
 
 // Initialize the widget when the page loads
-document.addEventListener('DOMContentLoaded', renderSurfSpots);
+document.addEventListener('DOMContentLoaded', initializeWidget);
