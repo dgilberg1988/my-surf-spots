@@ -6,6 +6,7 @@ const surfSpots = [
         region: "Pacific",
         waveHeight: "Loading...",
         airport: "HNL",
+        city: "Honolulu",
         country: "USA"
     },
     {
@@ -15,6 +16,7 @@ const surfSpots = [
         region: "Africa",
         waveHeight: "Loading...",
         airport: "PLZ",
+        city: "Port Elizabeth",
         country: "ZAF"
     },
     {
@@ -24,6 +26,7 @@ const surfSpots = [
         region: "Pacific",
         waveHeight: "Loading...",
         airport: "SFO",
+        city: "San Francisco",
         country: "USA"
     },
     {
@@ -33,6 +36,7 @@ const surfSpots = [
         region: "Asia",
         waveHeight: "Loading...",
         airport: "DPS",
+        city: "Denpasar",
         country: "IDN"
     },
     {
@@ -42,6 +46,7 @@ const surfSpots = [
         region: "Pacific",
         waveHeight: "Loading...",
         airport: "PPT",
+        city: "Tahiti",
         country: "PYF"
     }
 ];
@@ -136,10 +141,29 @@ function renderSurfSpots() {
     // Clear existing content
     container.innerHTML = '';
     
-    // Sort spots by distance if user location is available
+    // Helper function to parse wave height for sorting
+    function parseWaveHeight(waveHeight) {
+        if (!waveHeight || waveHeight === 'Loading...' || waveHeight === 'N/A') {
+            return 0; // Put loading/error states at the bottom
+        }
+        
+        // Extract numeric value from strings like "8-12ft", "15ft", etc.
+        const match = waveHeight.match(/(\d+)(?:-(\d+))?ft/);
+        if (match) {
+            const min = parseInt(match[1]);
+            const max = match[2] ? parseInt(match[2]) : min;
+            return (min + max) / 2; // Use average for ranges
+        }
+        
+        return 0;
+    }
+    
+    // Sort spots by wave height (biggest to smallest)
     let sortedSpots = [...surfSpots];
+    
+    // Add distance calculation if user location is available
     if (userLocation) {
-        sortedSpots = surfSpots.map(spot => ({
+        sortedSpots = sortedSpots.map(spot => ({
             ...spot,
             distance: calculateDistance(
                 userLocation.lat, 
@@ -147,11 +171,18 @@ function renderSurfSpots() {
                 spot.coordinates.lat, 
                 spot.coordinates.lon
             )
-        })).sort((a, b) => a.distance - b.distance);
+        }));
     }
     
+    // Sort by wave height (descending - biggest waves first)
+    sortedSpots.sort((a, b) => {
+        const waveA = parseWaveHeight(a.waveHeight);
+        const waveB = parseWaveHeight(b.waveHeight);
+        return waveB - waveA; // Descending order
+    });
+    
     // Render each surf spot
-    sortedSpots.forEach(spot => {
+    sortedSpots.forEach((spot, index) => {
         const spotCard = document.createElement('div');
         spotCard.className = 'spot-card';
         
@@ -165,9 +196,13 @@ function renderSurfSpots() {
             </div>
             <div class="flight-info">
                 <div class="flight-cost">Est. Flight: ${spot.flightCost}</div>
-                <button class="flight-btn" onclick="findFlights('${spot.name}')">Find Flights →</button>
+                <button class="flight-btn" data-spot-name="${spot.name}">Find Flights →</button>
             </div>
         `;
+        
+        // Add event listener to the flight button
+        const flightBtn = spotCard.querySelector('.flight-btn');
+        flightBtn.addEventListener('click', () => findFlights(spot.name));
         
         container.appendChild(spotCard);
     });
@@ -177,17 +212,18 @@ function findFlights(spotName) {
     const spot = surfSpots.find(s => s.name === spotName);
     if (!spot) return;
     
-    // Create flight search URL for popular booking sites
-    const destination = spot.airport;
+    // Use city name for better recognition, especially for places like Tahiti
+    // Google Flights often works better with city names than obscure airport codes
+    const destination = spot.city || spot.airport;
     let searchUrl;
     
     if (userLocation) {
         // If we have user location, try to find nearest airport
-        // For now, we'll use a generic search
-        searchUrl = `https://www.kayak.com/flights?destination=${destination}`;
+        // For now, we'll use a generic search with destination prepopulated
+        searchUrl = `https://www.google.com/travel/flights?q=flights%20to%20${encodeURIComponent(destination)}`;
     } else {
-        // Default search without origin
-        searchUrl = `https://www.google.com/flights?destination=${destination}`;
+        // Google Flights URL that properly prepopulates destination
+        searchUrl = `https://www.google.com/travel/flights?q=flights%20to%20${encodeURIComponent(destination)}`;
     }
     
     // Open flight search in new tab
@@ -199,10 +235,13 @@ function showFlightOptions(spotName) {
     const spot = surfSpots.find(s => s.name === spotName);
     if (!spot) return;
     
+    const destination = spot.city || spot.airport;
+    const encodedDestination = encodeURIComponent(destination);
+    
     const bookingOptions = [
-        { name: 'Google Flights', url: `https://www.google.com/flights?destination=${spot.airport}` },
+        { name: 'Google Flights', url: `https://www.google.com/travel/flights?q=flights%20to%20${encodedDestination}` },
         { name: 'Kayak', url: `https://www.kayak.com/flights?destination=${spot.airport}` },
-        { name: 'Expedia', url: `https://www.expedia.com/Flights?destination=${spot.airport}` }
+        { name: 'Expedia', url: `https://www.expedia.com/Flights-Search?flight-type=on&starDate=&endDate=&_xpid=11905%7C1&mode=search&trip=oneway&leg1=from%3A%2Cto%3A${encodedDestination}&passengers=children%3A0%2Cadults%3A1%2Cseniors%3A0%2Cinfantinlap%3AY` }
     ];
     
     // For demo purposes, just use the first option
