@@ -218,8 +218,15 @@ function findFlights(spotName) {
     const destination = spot.city || spot.airport;
     const origin = 'Los Angeles'; // Always use Los Angeles as the origin
 
-    // Construct the Google Flights URL with a hardcoded origin
-    const searchUrl = `https://www.google.com/travel/flights?q=flights%20from%20${encodeURIComponent(origin)}%20to%20${encodeURIComponent(destination)}`;
+    // Get today's date in YYYY-MM-DD format
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    const departureDate = `${year}-${month}-${day}`;
+
+    // Construct the Google Flights URL with origin, destination, and date
+    const searchUrl = `https://www.google.com/travel/flights?q=flights%20from%20${encodeURIComponent(origin)}%20to%20${encodeURIComponent(destination)}%20on%20${departureDate}`;
 
     // Open flight search in a new tab
     window.open(searchUrl, '_blank');
