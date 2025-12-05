@@ -52,7 +52,7 @@ const surfSpots = [
 ];
 
 // Global state
-let userLocation = null;
+let userLocation = { lat: 34.0522, lon: -118.2437 }; // Default to Los Angeles
 let isLoading = false;
 
 // API Configuration
@@ -96,7 +96,9 @@ async function updateWaveData() {
 function getUserLocation() {
     return new Promise((resolve, reject) => {
         if (!navigator.geolocation) {
-            reject(new Error('Geolocation is not supported by this browser'));
+            // Geolocation not supported, use default LA location
+            console.log('Geolocation not supported, using default location');
+            resolve(userLocation);
             return;
         }
         
@@ -109,12 +111,13 @@ function getUserLocation() {
                 resolve(userLocation);
             },
             (error) => {
-                console.error('Error getting location:', error);
-                reject(error);
+                console.error('Error getting location, using default:', error);
+                // On error, just resolve with the default LA location
+                resolve(userLocation);
             },
             {
                 enableHighAccuracy: true,
-                timeout: 10000,
+                timeout: 5000, // Shorter timeout
                 maximumAge: 300000 // 5 minutes
             }
         );
@@ -211,22 +214,14 @@ function renderSurfSpots() {
 function findFlights(spotName) {
     const spot = surfSpots.find(s => s.name === spotName);
     if (!spot) return;
-    
-    // Use city name for better recognition, especially for places like Tahiti
-    // Google Flights often works better with city names than obscure airport codes
+
     const destination = spot.city || spot.airport;
-    let searchUrl;
-    
-    if (userLocation) {
-        // If we have user location, try to find nearest airport
-        // For now, we'll use a generic search with destination prepopulated
-        searchUrl = `https://www.google.com/travel/flights?q=flights%20to%20${encodeURIComponent(destination)}`;
-    } else {
-        // Google Flights URL that properly prepopulates destination
-        searchUrl = `https://www.google.com/travel/flights?q=flights%20to%20${encodeURIComponent(destination)}`;
-    }
-    
-    // Open flight search in new tab
+    const origin = 'Los Angeles'; // Always use Los Angeles as the origin
+
+    // Construct the Google Flights URL with a hardcoded origin
+    const searchUrl = `https://www.google.com/travel/flights?q=flights%20from%20${encodeURIComponent(origin)}%20to%20${encodeURIComponent(destination)}`;
+
+    // Open flight search in a new tab
     window.open(searchUrl, '_blank');
 }
 
